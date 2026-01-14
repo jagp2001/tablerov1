@@ -40,12 +40,19 @@ const float TEMP_MIN = 0.0;
 const float TEMP_MAX = 100.0;
 
 // Umbral voltaje para "cae" (ajústalo si quieres)
-const float VOLT_LOW = 12.2;
+const float VOLT_LOW = 12.0;
+
+// Colores por rangos de temperatura
+const uint16_t TEMP_COLD       = TFT_SKYBLUE; // 0-50
+const uint16_t TEMP_WARMING    = 0xFFB2;      // 50-75 pastel
+const uint16_t TEMP_OPTIMAL    = TFT_GREEN;   // 75-95
+const uint16_t TEMP_HOT_NORMAL = TFT_YELLOW;  // 95-105
+const uint16_t TEMP_HIGH       = TFT_ORANGE;  // 105-115
+const uint16_t TEMP_OVERHEAT   = TFT_RED;     // >115
 
 // Tema de colores fijo por sección
-const uint16_t TEMP_THEME = TFT_YELLOW;  // TEMP siempre “amarillo” en título/círculo
-const uint16_t VOLT_OK    = TFT_GREEN;   // VOLTAJE OK
-const uint16_t VOLT_BAD   = TFT_RED;     // VOLTAJE CAE
+const uint16_t VOLT_OK  = TFT_GREEN;   // VOLTAJE OK
+const uint16_t VOLT_BAD = TFT_RED;     // VOLTAJE CAE
 
 // ==================== Lecturas ====================
 float readBatteryVolts() {
@@ -68,10 +75,10 @@ float readTempC() {
 void drawIconThermo(int x, int y, uint16_t circleColor, uint16_t iconColor) {
   tft.fillCircle(x, y, 16, circleColor);
   // termómetro simple (iconColor = negro)
-  tft.drawCircle(x - 4, y + 6, 5, iconColor);
-  tft.drawLine(x - 4, y - 8, x - 4, y + 2, iconColor);
-  tft.drawLine(x - 2, y - 8, x - 2, y + 2, iconColor);
-  tft.fillCircle(x - 4, y + 6, 3, iconColor);
+  tft.drawCircle(x, y + 6, 5, iconColor);
+  tft.drawLine(x, y - 8, x, y + 2, iconColor);
+  tft.drawLine(x + 2, y - 8, x + 2, y + 2, iconColor);
+  tft.fillCircle(x, y + 6, 3, iconColor);
 }
 
 void drawIconBolt(int x, int y, uint16_t circleColor, uint16_t iconColor) {
@@ -99,7 +106,26 @@ void drawBar(int x, int y, int w, int h, float value, float vmin, float vmax,
 }
 
 // ==================== Layout fijo ====================
-void drawLayout(uint16_t voltThemeColor) {
+void drawTempHeader(uint16_t tempThemeColor) {
+  drawIconThermo(28, 28, tempThemeColor, TFT_BLACK);
+  tft.setTextSize(2);
+  tft.setTextColor(tempThemeColor, COL_PANEL);
+  tft.setCursor(55, 16);
+  tft.print("TEMP");
+}
+
+void drawVoltHeader(uint16_t voltThemeColor) {
+  int W = tft.width();
+  int mid = W / 2;
+
+  drawIconBolt(mid + 28, 28, voltThemeColor, TFT_BLACK);
+  tft.setTextSize(2);
+  tft.setTextColor(voltThemeColor, COL_PANEL);
+  tft.setCursor(mid + 55, 16);
+  tft.print("VOLTAJE");
+}
+
+void drawLayout(uint16_t tempThemeColor, uint16_t voltThemeColor) {
   tft.fillScreen(COL_BG);
 
   int W = tft.width();   // 320
@@ -117,17 +143,10 @@ void drawLayout(uint16_t voltThemeColor) {
   tft.drawLine(mid, 10, mid, H - 10, COL_LINE);
 
   // ===== TEMP (izq) =====
-  drawIconThermo(28, 28, TEMP_THEME, TFT_BLACK); // círculo amarillo, icono negro
-  tft.setTextSize(2);
-  tft.setTextColor(TEMP_THEME, COL_PANEL);
-  tft.setCursor(55, 16);
-  tft.print("TEMP");
+  drawTempHeader(tempThemeColor);
 
   // ===== VOLTAJE (der) =====
-  drawIconBolt(mid + 28, 28, voltThemeColor, TFT_BLACK); // círculo verde/rojo, icono negro
-  tft.setTextColor(voltThemeColor, COL_PANEL);
-  tft.setCursor(mid + 55, 16);
-  tft.print("VOLTAJE");
+  drawVoltHeader(voltThemeColor);
 
   // Líneas bajo header
   tft.drawLine(12, 55, mid - 12, 55, COL_LINE);
@@ -160,17 +179,35 @@ void drawValues(float tC, float vBat) {
   bool vLow = (vBat < VOLT_LOW);
   uint16_t vTheme = vLow ? VOLT_BAD : VOLT_OK;
 
+  // Colores por temperatura
+  uint16_t tColor;
+  const char* tSts;
+  if (tC < 50.0) { tColor = TEMP_COLD; tSts = "STS:FRIA"; }
+  else if (tC < 75.0) { tColor = TEMP_WARMING; tSts = "STS:CAL"; }
+  else if (tC < 95.0) { tColor = TEMP_OPTIMAL; tSts = "STS:OPT"; }
+  else if (tC < 105.0) { tColor = TEMP_HOT_NORMAL; tSts = "STS:HOT"; }
+  else if (tC < 115.0) { tColor = TEMP_HIGH; tSts = "STS:ALTA"; }
+  else { tColor = TEMP_OVERHEAT; tSts = "STS:OVR"; }
+
   // Si cambia el "estado" de voltaje (verde<->rojo), redibuja header/icono (sin parpadeo grande)
   static int lastVLowState = -1;
   if (lastVLowState == -1) lastVLowState = vLow ? 1 : 0;
   if ((vLow ? 1 : 0) != lastVLowState) {
     // Redibuja layout solo cuando cambia de verde a rojo o viceversa
-    drawLayout(vTheme);
+    drawLayout(tColor, vTheme);
 
     // Forzar redibujar todo dinámico
     tempChanged = true;
     voltChanged = true;
     lastVLowState = vLow ? 1 : 0;
+  }
+
+  static uint16_t lastTempTheme = 0;
+  if (lastTempTheme == 0) lastTempTheme = tColor;
+  if (tColor != lastTempTheme) {
+    drawTempHeader(tColor);
+    tempChanged = true;
+    lastTempTheme = tColor;
   }
 
   // Limpia SOLO zonas dinámicas pequeñas
@@ -199,14 +236,6 @@ void drawValues(float tC, float vBat) {
       tft.setCursor(leftX, 195);
       tft.print("STS:ERR");
     } else {
-      // Colores por temperatura como pediste:
-      // <80 verde, 80-90 amarillo, >90 naranja
-      uint16_t tColor;
-      const char* tSts;
-      if (tC < 80.0) { tColor = TFT_GREEN;  tSts = "STS:OK";  }
-      else if (tC <= 90.0) { tColor = TFT_YELLOW; tSts = "STS:YEL"; }
-      else { tColor = TFT_ORANGE; tSts = "STS:ORG"; }
-
       tft.setTextColor(tColor, COL_PANEL);
 
       char tStr[10];
@@ -277,7 +306,7 @@ void setup() {
   tft.setRotation(1); // Landscape 320x240
 
   // Dibuja layout con VOLTAJE inicialmente verde
-  drawLayout(VOLT_OK);
+  drawLayout(TEMP_COLD, VOLT_OK);
 }
 
 void loop() {
