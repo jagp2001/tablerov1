@@ -39,8 +39,9 @@ const uint16_t COL_PANEL  = 0x1082;   // panel oscuro
 const float TEMP_MIN = 0.0;
 const float TEMP_MAX = 100.0;
 
-// Umbral voltaje para "cae" (ajústalo si quieres)
-const float VOLT_LOW = 12.0;
+// Umbrales voltaje (ajústalos si quieres)
+const float VOLT_OK_MIN = 12.0;
+const float VOLT_OK_MAX = 15.0;
 // Umbral voltaje para considerar "sin conexión"
 const float VOLT_DISCONNECT = 0.10;
 
@@ -181,9 +182,16 @@ void drawValues(float tC, float vBat) {
   bool vDisconnectedChanged = (lastVDisconnectedState == -1) || ((vDisconnected ? 1 : 0) != lastVDisconnectedState);
   bool voltChanged = vDisconnectedChanged || isnan(lastVB) || fabs(vBat - lastVB) >= 0.02; // 0.02V
 
-  // Tema voltaje: verde o rojo (TODO uniforme)
-  bool vLow = vDisconnected || (vBat < VOLT_LOW);
-  uint16_t vTheme = vLow ? VOLT_BAD : VOLT_OK;
+  // Tema voltaje: rojo <=12V o >=15V, verde entre (12,15)
+  int vState = 0; // 0=LOW/DISCONNECT, 1=OK, 2=HIGH
+  if (vDisconnected || vBat <= VOLT_OK_MIN) {
+    vState = 0;
+  } else if (vBat < VOLT_OK_MAX) {
+    vState = 1;
+  } else {
+    vState = 2;
+  }
+  uint16_t vTheme = (vState == 1) ? VOLT_OK : VOLT_BAD;
 
   // Colores por temperatura
   uint16_t tColor;
@@ -196,16 +204,20 @@ void drawValues(float tC, float vBat) {
   else { tColor = TEMP_OVERHEAT; tSts = "STS:OVR"; }
 
   // Si cambia el "estado" de voltaje (verde<->rojo), redibuja header/icono (sin parpadeo grande)
-  static int lastVLowState = -1;
-  if (lastVLowState == -1) lastVLowState = vLow ? 1 : 0;
-  if ((vLow ? 1 : 0) != lastVLowState) {
+  static uint16_t lastVTheme = 0;
+  if (lastVTheme == 0) {
+    lastVTheme = vTheme;
+    drawLayout(tColor, vTheme);
+    tempChanged = true;
+    voltChanged = true;
+  } else if (vTheme != lastVTheme) {
     // Redibuja layout solo cuando cambia de verde a rojo o viceversa
     drawLayout(tColor, vTheme);
 
     // Forzar redibujar todo dinámico
     tempChanged = true;
     voltChanged = true;
-    lastVLowState = vLow ? 1 : 0;
+    lastVTheme = vTheme;
   }
 
   static uint16_t lastTempTheme = 0;
@@ -286,7 +298,7 @@ void drawValues(float tC, float vBat) {
       tft.setCursor(rightX, 195);
       tft.print("STS:NC");
     } else {
-      // TODO el voltaje uniforme (verde o rojo)
+      // Voltaje uniforme según rango
       tft.setTextSize(6);
       tft.setTextColor(vTheme, COL_PANEL);
 
@@ -310,7 +322,13 @@ void drawValues(float tC, float vBat) {
       tft.setTextSize(2);
       tft.setTextColor(vTheme, COL_PANEL);
       tft.setCursor(rightX, 195);
-      tft.print(vLow ? "STS:LOW" : "STS:OK");
+      if (vState == 1) {
+        tft.print("STS:OK");
+      } else if (vState == 2) {
+        tft.print("STS:HIGH");
+      } else {
+        tft.print("STS:LOW");
+      }
     }
 
     lastVB = vBat;
