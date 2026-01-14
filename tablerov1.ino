@@ -41,6 +41,8 @@ const float TEMP_MAX = 100.0;
 
 // Umbral voltaje para "cae" (ajústalo si quieres)
 const float VOLT_LOW = 12.0;
+// Umbral voltaje para considerar "sin conexión"
+const float VOLT_DISCONNECT = 0.10;
 
 // Colores por rangos de temperatura (RGB565 explícito)
 const uint16_t TEMP_COLD       = 0x6DFF; // 0-50 celeste
@@ -174,10 +176,13 @@ void drawValues(float tC, float vBat) {
 
   // Cambios mínimos para evitar flicker
   bool tempChanged = isnan(lastTC) || fabs(tC - lastTC) >= 0.1;    // 0.1°C
-  bool voltChanged = isnan(lastVB) || fabs(vBat - lastVB) >= 0.02; // 0.02V
+  static int lastVDisconnectedState = -1;
+  bool vDisconnected = (vBat <= VOLT_DISCONNECT);
+  bool vDisconnectedChanged = (lastVDisconnectedState == -1) || ((vDisconnected ? 1 : 0) != lastVDisconnectedState);
+  bool voltChanged = vDisconnectedChanged || isnan(lastVB) || fabs(vBat - lastVB) >= 0.02; // 0.02V
 
   // Tema voltaje: verde o rojo (TODO uniforme)
-  bool vLow = (vBat < VOLT_LOW);
+  bool vLow = vDisconnected || (vBat < VOLT_LOW);
   uint16_t vTheme = vLow ? VOLT_BAD : VOLT_OK;
 
   // Colores por temperatura
@@ -266,33 +271,50 @@ void drawValues(float tC, float vBat) {
 
   // ===== VOLTAJE =====
   if (voltChanged) {
-    // TODO el voltaje uniforme (verde o rojo)
-    tft.setTextSize(6);
-    tft.setTextColor(vTheme, COL_PANEL);
+    if (vDisconnected) {
+      tft.setTextSize(3);
+      tft.setTextColor(VOLT_BAD, COL_PANEL);
+      const char* vMsg = "SIN CON";
+      int w2 = tft.textWidth(vMsg);
+      tft.setCursor(rightX + (boxW - w2) / 2, 110);
+      tft.print(vMsg);
 
-    char vStr[10];
-    snprintf(vStr, sizeof(vStr), "%.2f", vBat);
-    int w2 = tft.textWidth(vStr);
-    tft.setCursor(rightX + (boxW - w2) / 2, 92);
-    tft.print(vStr);
+      drawBar(rightX, 170, boxW, 20, 0.0, 0.0, 16.0, VOLT_BAD, COL_BG, COL_LINE);
 
-    // unidad pequeña
-    tft.setTextSize(2);
-    tft.setTextColor(vTheme, COL_PANEL);
-    tft.setCursor(rightX + boxW - 22, 148);
-    tft.print("V");
+      tft.setTextSize(2);
+      tft.setTextColor(VOLT_BAD, COL_PANEL);
+      tft.setCursor(rightX, 195);
+      tft.print("STS:NC");
+    } else {
+      // TODO el voltaje uniforme (verde o rojo)
+      tft.setTextSize(6);
+      tft.setTextColor(vTheme, COL_PANEL);
 
-    // barra voltaje (mismo color uniforme)
-    // Escala típica 0–16V solo para visual (no afecta tu medición)
-    drawBar(rightX, 170, boxW, 20, vBat, 0.0, 16.0, vTheme, COL_BG, COL_LINE);
+      char vStr[10];
+      snprintf(vStr, sizeof(vStr), "%.2f", vBat);
+      int w2 = tft.textWidth(vStr);
+      tft.setCursor(rightX + (boxW - w2) / 2, 92);
+      tft.print(vStr);
 
-    // STS abreviado y del mismo color del voltaje
-    tft.setTextSize(2);
-    tft.setTextColor(vTheme, COL_PANEL);
-    tft.setCursor(rightX, 195);
-    tft.print(vLow ? "STS:LOW" : "STS:OK");
+      // unidad pequeña
+      tft.setTextSize(2);
+      tft.setTextColor(vTheme, COL_PANEL);
+      tft.setCursor(rightX + boxW - 22, 148);
+      tft.print("V");
+
+      // barra voltaje (mismo color uniforme)
+      // Escala típica 0–16V solo para visual (no afecta tu medición)
+      drawBar(rightX, 170, boxW, 20, vBat, 0.0, 16.0, vTheme, COL_BG, COL_LINE);
+
+      // STS abreviado y del mismo color del voltaje
+      tft.setTextSize(2);
+      tft.setTextColor(vTheme, COL_PANEL);
+      tft.setCursor(rightX, 195);
+      tft.print(vLow ? "STS:LOW" : "STS:OK");
+    }
 
     lastVB = vBat;
+    lastVDisconnectedState = vDisconnected ? 1 : 0;
   }
 }
 
