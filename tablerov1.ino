@@ -42,17 +42,17 @@ const float TEMP_MAX = 100.0;
 // Umbral voltaje para "cae" (ajústalo si quieres)
 const float VOLT_LOW = 12.0;
 
-// Colores por rangos de temperatura
-const uint16_t TEMP_COLD       = TFT_SKYBLUE; // 0-50
-const uint16_t TEMP_WARMING    = 0xFFB2;      // 50-75 pastel
-const uint16_t TEMP_OPTIMAL    = TFT_GREEN;   // 75-95
-const uint16_t TEMP_HOT_NORMAL = TFT_YELLOW;  // 95-105
-const uint16_t TEMP_HIGH       = TFT_ORANGE;  // 105-115
-const uint16_t TEMP_OVERHEAT   = TFT_RED;     // >115
+// Colores por rangos de temperatura (RGB565 explícito)
+const uint16_t TEMP_COLD       = 0x6DFF; // 0-50 celeste
+const uint16_t TEMP_WARMING    = 0xFFB2; // 50-75 amarillo pastel
+const uint16_t TEMP_OPTIMAL    = 0x07E0; // 75-95 verde
+const uint16_t TEMP_HOT_NORMAL = 0xFFE0; // 95-105 amarillo
+const uint16_t TEMP_HIGH       = 0xFD20; // 105-115 naranja
+const uint16_t TEMP_OVERHEAT   = 0xF800; // >115 rojo
 
 // Tema de colores fijo por sección
-const uint16_t VOLT_OK  = TFT_GREEN;   // VOLTAJE OK
-const uint16_t VOLT_BAD = TFT_RED;     // VOLTAJE CAE
+const uint16_t VOLT_OK  = 0x07E0;   // VOLTAJE OK (verde)
+const uint16_t VOLT_BAD = 0xF800;   // VOLTAJE CAE (rojo)
 
 // ==================== Lecturas ====================
 float readBatteryVolts() {
@@ -75,9 +75,10 @@ float readTempC() {
 void drawIconThermo(int x, int y, uint16_t circleColor, uint16_t iconColor) {
   tft.fillCircle(x, y, 16, circleColor);
   // termómetro simple (iconColor = negro)
-  tft.drawCircle(x, y + 6, 5, iconColor);
-  tft.drawLine(x, y - 8, x, y + 2, iconColor);
-  tft.drawLine(x + 2, y - 8, x + 2, y + 2, iconColor);
+  tft.drawCircle(x, y + 6, 4, iconColor);
+  tft.drawLine(x - 1, y - 9, x - 1, y + 2, iconColor);
+  tft.drawLine(x, y - 9, x, y + 2, iconColor);
+  tft.drawLine(x + 1, y - 9, x + 1, y + 2, iconColor);
   tft.fillCircle(x, y + 6, 3, iconColor);
 }
 
@@ -246,7 +247,7 @@ void drawValues(float tC, float vBat) {
 
       // unidad pequeña
       tft.setTextSize(2);
-      tft.setTextColor(COL_SUBTXT, COL_PANEL);
+      tft.setTextColor(tColor, COL_PANEL);
       tft.setCursor(leftX + boxW - 46, 148);
       tft.print("C");
 
@@ -277,7 +278,7 @@ void drawValues(float tC, float vBat) {
 
     // unidad pequeña
     tft.setTextSize(2);
-    tft.setTextColor(COL_SUBTXT, COL_PANEL);
+    tft.setTextColor(vTheme, COL_PANEL);
     tft.setCursor(rightX + boxW - 22, 148);
     tft.print("V");
 
