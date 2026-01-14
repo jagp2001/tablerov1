@@ -2,6 +2,7 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <math.h>
+#include "splash_image.h"
 
 // ==================== TFT ====================
 TFT_eSPI tft = TFT_eSPI();
@@ -58,12 +59,6 @@ const uint16_t VOLT_OK  = 0x07E0;   // VOLTAJE OK (verde)
 const uint16_t VOLT_BAD = 0xF800;   // VOLTAJE CAE (rojo)
 
 // ==================== Splash ====================
-// Reemplaza el contenido del arreglo con la imagen convertida a RGB565.
-// Tip: usa "TFT_eSPI > Tools > ImageConverter" y exporta como array RGB565.
-const uint16_t SPLASH_WIDTH = 320;
-const uint16_t SPLASH_HEIGHT = 240;
-const uint16_t splashImage[SPLASH_WIDTH * SPLASH_HEIGHT] PROGMEM = {0};
-
 const uint16_t SPLASH_HOLD_MS = 3000;
 const uint8_t SPLASH_FADE_STEPS = 16;
 const uint16_t SPLASH_FADE_STEP_DELAY_MS = 20;
