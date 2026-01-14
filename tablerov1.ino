@@ -57,6 +57,17 @@ const uint16_t TEMP_OVERHEAT   = 0xF800; // >115 rojo
 const uint16_t VOLT_OK  = 0x07E0;   // VOLTAJE OK (verde)
 const uint16_t VOLT_BAD = 0xF800;   // VOLTAJE CAE (rojo)
 
+// ==================== Splash ====================
+// Reemplaza el contenido del arreglo con la imagen convertida a RGB565.
+// Tip: usa "TFT_eSPI > Tools > ImageConverter" y exporta como array RGB565.
+const uint16_t SPLASH_WIDTH = 320;
+const uint16_t SPLASH_HEIGHT = 240;
+const uint16_t splashImage[SPLASH_WIDTH * SPLASH_HEIGHT] PROGMEM = {0};
+
+const uint16_t SPLASH_HOLD_MS = 3000;
+const uint8_t SPLASH_FADE_STEPS = 16;
+const uint16_t SPLASH_FADE_STEP_DELAY_MS = 20;
+
 // ==================== Lecturas ====================
 float readBatteryVolts() {
   uint32_t sum = 0;
@@ -107,6 +118,50 @@ void drawBar(int x, int y, int w, int h, float value, float vmin, float vmax,
   int fillW = (int)((w - 4) * p);
   if (fillW < 1) fillW = 1;
   tft.fillRoundRect(x + 2, y + 2, fillW, h - 4, 5, cFill);
+}
+
+uint16_t scaleColor565(uint16_t color, uint8_t brightness) {
+  if (brightness >= 255) return color;
+  uint8_t r = (color >> 11) & 0x1F;
+  uint8_t g = (color >> 5) & 0x3F;
+  uint8_t b = color & 0x1F;
+  r = (r * brightness) / 255;
+  g = (g * brightness) / 255;
+  b = (b * brightness) / 255;
+  return (r << 11) | (g << 5) | b;
+}
+
+void drawSplashImage(uint8_t brightness) {
+  static uint16_t lineBuffer[SPLASH_WIDTH];
+  tft.startWrite();
+  tft.setAddrWindow(0, 0, SPLASH_WIDTH, SPLASH_HEIGHT);
+
+  for (int y = 0; y < SPLASH_HEIGHT; y++) {
+    uint32_t rowOffset = (uint32_t)y * SPLASH_WIDTH;
+    for (int x = 0; x < SPLASH_WIDTH; x++) {
+      uint16_t c = pgm_read_word(&splashImage[rowOffset + x]);
+      lineBuffer[x] = scaleColor565(c, brightness);
+    }
+    tft.pushColors(lineBuffer, SPLASH_WIDTH, true);
+  }
+
+  tft.endWrite();
+}
+
+void showSplashScreen() {
+  for (uint8_t step = 0; step <= SPLASH_FADE_STEPS; step++) {
+    uint8_t brightness = (uint8_t)((step * 255) / SPLASH_FADE_STEPS);
+    drawSplashImage(brightness);
+    delay(SPLASH_FADE_STEP_DELAY_MS);
+  }
+
+  delay(SPLASH_HOLD_MS);
+
+  for (int step = SPLASH_FADE_STEPS; step >= 0; step--) {
+    uint8_t brightness = (uint8_t)((step * 255) / SPLASH_FADE_STEPS);
+    drawSplashImage(brightness);
+    delay(SPLASH_FADE_STEP_DELAY_MS);
+  }
 }
 
 // ==================== Layout fijo ====================
@@ -345,6 +400,8 @@ void setup() {
 
   tft.init();
   tft.setRotation(1); // Landscape 320x240
+
+  showSplashScreen();
 
   // Dibuja layout con VOLTAJE inicialmente verde
   drawLayout(TEMP_COLD, VOLT_OK);
