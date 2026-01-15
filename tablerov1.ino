@@ -233,7 +233,7 @@ void drawValues(float tC, float vBat) {
   static int lastVDisconnectedState = -1;
   bool vDisconnected = (vBat <= VOLT_DISCONNECT);
   bool vDisconnectedChanged = (lastVDisconnectedState == -1) || ((vDisconnected ? 1 : 0) != lastVDisconnectedState);
-  bool voltChanged = vDisconnectedChanged || isnan(lastVB) || fabs(vBat - lastVB) >= 0.02; // 0.02V
+  bool voltChanged = vDisconnectedChanged || isnan(lastVB) || fabs(vBat - lastVB) >= 0.05; // 0.05V
 
   // Tema voltaje: rojo <=12V o >=15V, verde entre (12,15)
   int vState = 0; // 0=LOW/DISCONNECT, 1=OK, 2=HIGH
@@ -356,7 +356,7 @@ void drawValues(float tC, float vBat) {
       tft.setTextColor(vTheme, COL_PANEL);
 
       char vStr[10];
-      snprintf(vStr, sizeof(vStr), "%.2f", vBat);
+      snprintf(vStr, sizeof(vStr), "%.1f", vBat);
       int w2 = tft.textWidth(vStr);
       tft.setCursor(rightX + (boxW - w2) / 2, 92);
       tft.print(vStr);
@@ -398,6 +398,7 @@ void setup() {
 
   tft.init();
   tft.setRotation(1); // Landscape 320x240
+  tft.fillScreen(COL_BG);
 
   showSplashScreen();
 
