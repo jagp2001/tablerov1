@@ -15,8 +15,11 @@ DallasTemperature tempSensors(&oneWire);
 // ==================== VOLTAJE (ADC) ====================
 #define BAT_ADC_PIN 36
 
-const float R1 = 100000.0;
-const float R2 = 27000.0;
+
+const float V_CAL = 1.096;   // calibración (ajusta si cambias fuente/multímetro)
+
+const float R1 = 200000.0;
+const float R2 = 33000.0;
 const float DIV_FACTOR = (R1 + R2) / R2;
 
 const float VREF = 3.30;
@@ -72,7 +75,7 @@ float readBatteryVolts() {
   }
   float adc = (float)sum / ADC_SAMPLES;
   float vPin = (adc / ADC_MAX) * VREF;
-  return vPin * DIV_FACTOR;
+return vPin * DIV_FACTOR * V_CAL;
 }
 
 float readTempC() {
